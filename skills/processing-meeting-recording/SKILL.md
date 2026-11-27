@@ -48,9 +48,11 @@ It prints the start, the end and (for a video) the crop, `W:H:X:Y` in screen pix
 
 | Row of the preview | Right when |
 |---|---|
-| start −5 s / +5 s | before: a lobby ("someone will let you in") or no call yet; after: the other person on screen |
+| start −5 s / +5 s | before: a lobby ("someone will let you in"), the user alone waiting, or no call yet; after: **the other person on screen**. The user alone, even talking or testing the microphone, is not the start |
 | end −5 s / +5 s | before: still in the call; after: the call is over (Teams' "Meetings are just one tool…", the desktop) |
 | red box, crop × 3 | it holds every face and nothing else: no document, no browser |
+
+**Keep only the meeting itself** (user, 27 Nov 2026: the first 1:19 of the DS interview's MP4 was the user alone, waiting). The detector takes the first speech, so it counts the user waiting or testing alone as the start. When the +5 s picture shows only the user or the lobby, find when the other person joins: one frame every 30 s (`ffmpeg -ss <s> -i <recording> -frames:v 1 f_<s>.jpg`, then a strip with `hstack`), or the Whisper transcript's first greeting; then `analyse` again with `--start <that second − 2>` (it computes the crop again: look at the new preview) and, if outputs were already made, redo them: the MP4 and the MP3 (delete them by their path), and shift every time of the transcripts by the same seconds. Do the same at the end (`--end`): the last frames must still show the call.
 
 How they are found: the **start and end** are the first and last stretch of speech (10 s with 7 s louder than halfway between the quiet and the median second), ±2 s; the **crop** is the part of the screen that changes from one half-second to the next in 30 moments of the meeting (only the video tiles move), each side moved, pixel by pixel, to the tile's own edge. Wrong: `analyse` again with `--start 250`, `--end 3200` or `--crop 1592:1484:4:848`. Expect it when there was talking or music before the call, a shared screen, or another window playing a video. An audio file: start and end only.
 
@@ -78,5 +80,5 @@ Gemini is fine for every meeting, a doctor's or a lawyer's too (user, 19 Nov 202
 ## 5. Check and report
 
 - `tail` the run log: each output ✓ or ✗; the MP4 ≤ 300 MB.
-- `transcript.md`: read its first and last 15 lines (speakers right? names? the end of the meeting there?).
+- `transcript.md`: read its first and last 15 lines (speakers right? names? the end of the meeting there?). The first line must be the greeting between the people, not the user alone.
 - Tell the user, in a table: each file, its size and length; the folder's full path in backticks. Then ask whether the recording can go to the Trash: never before they say yes.
