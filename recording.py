@@ -8,7 +8,7 @@ meeting belongs).
            -> <work>/analysis.json and <work>/preview.jpg, which the agent looks at before `make`
   make     every output missing from the folder, in order (a re-run does only what is missing; nothing is overwritten):
              <date>_<name> - recording.mp4              cut + crop, H.264 2-pass under --max-mb (300 MB)   (video only)
-             <date>_<name> - recording.mp3              the same cut, 320 kbps
+             <date>_<name> - recording.mp3              the same cut, 320 kbps or lower to stay under 90 MB; deleted once the MP4 and transcript.md exist
              <date>_<name> - transcription-whisper.md   Whisper large-v3-turbo (mlx-whisper, on the Mac), no speakers
              <date>_<name> - transcription-gemini.md    Gemini (skill gemini, free key): speakers named
              <date>_<name> - transcript.md              Gemini merges the two: speakers, names spelled right, fillers out
@@ -43,7 +43,8 @@ BLOCK = 8              # ... in blocks of 8x8 of those pixels (32 px of the scre
 LIVE_LINE = 0.02       # a line of pixels belongs to a tile when it changed in 2 % of the pairs (outside: 0.00)
 FPS = 30
 AUDIO_KBPS = 128       # the MP4's AAC
-MP3_KBPS = 320
+MP3_KBPS = 320         # the MP3's top bitrate; lower for a long meeting, to stay under MP3_MAX_MB
+MP3_MAX_MB = 90        # a 100 MB limit on uploads (user, 27 Nov 2026): the MP3 stays under 90 MB
 SIZE_MARGIN = 0.97     # 2-pass aimed at 292 MB gave 289.1 MB (19 Nov 2026): aim 3 % under the cap
 WHISPER = ['uvx', '--from', 'mlx-whisper==0.4.3', 'mlx_whisper']
 WHISPER_MODEL = 'mlx-community/whisper-large-v3-turbo'   # in ~/.cache/huggingface since Nov 2026; 1.6 GB
@@ -214,6 +215,11 @@ def video_kbps(duration, max_mb):
     return int(max_mb * 1e6 * SIZE_MARGIN * 8 / duration / 1000 / 1.01 - AUDIO_KBPS)
 
 
+def mp3_kbps(duration):
+    """MP3 bitrate: MP3_KBPS, or lower so that the file stays SIZE_MARGIN under MP3_MAX_MB (49 min: 320 kbps; 1 h: 196)."""
+    return min(MP3_KBPS, int(MP3_MAX_MB * 1e6 * SIZE_MARGIN * 8 / duration / 1000))
+
+
 def hms(t):
     t = int(t)
     return f'{t // 3600:02d}:{t // 60 % 60:02d}:{t % 60:02d}'
@@ -344,8 +350,10 @@ def make(src, folder, name, speakers, words='', language=None, max_mb=300):
                 raise SystemExit(f'the MP4 is over {max_mb} MB: {work / "recording.mp4"}')
             put('recording.mp4', work / 'recording.mp4')
         mp3 = d_out['recording.mp3']                            # the transcripts are made from the folder's copy
-        if not mp3.exists():
-            step(l_in + ['-vn', '-c:a', 'libmp3lame', '-b:a', f'{MP3_KBPS}k', work / 'recording.mp3'])
+        # with an MP4 the MP3 is temporary (user, 27 Nov 2026): not made again once the transcript is there
+        done = 'recording.mp4' in d_out and d_out['transcript.md'].exists()
+        if not mp3.exists() and not done:
+            step(l_in + ['-vn', '-c:a', 'libmp3lame', '-b:a', f'{mp3_kbps(dur)}k', work / 'recording.mp3'])
             put('recording.mp3', work / 'recording.mp3')
         source = d_out['recording.mp3'].name
         if not d_out['transcription-whisper.md'].exists():
@@ -373,7 +381,12 @@ def make(src, folder, name, speakers, words='', language=None, max_mb=300):
                 'a word unsure; times from the start of the MP3', source, f'{name}, {day:%-d %b %Y}')
                 + (work / 'merged.md').read_text().strip() + '\n')
             (work / 'merged.md').unlink()
+        if 'recording.mp4' in d_out and d_out['recording.mp4'].exists() and d_out['transcript.md'].exists() and mp3.exists():
+            mp3.unlink()                                        # the MP4 is the recording; the MP3 only fed the transcripts
+            print(f'{mp3}  (deleted: the MP4 is kept, the transcript is done)')
     for k, p in d_out.items():
+        if k == 'recording.mp3' and 'recording.mp4' in d_out and d_out['transcript.md'].exists():
+            continue
         print(f'{"✓" if p.exists() else "✗"} {p}')
 
 

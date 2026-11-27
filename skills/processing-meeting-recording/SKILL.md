@@ -12,7 +12,7 @@ What the user wants after each meeting (user, 19 Nov 2026): a highly compressed 
    │ 1 find it; the Calendar event at that time: who, what      2 the meeting's folder
    │ 3 analyse (30 s) ─► preview.jpg ── the agent looks; wrong? --start / --end / --crop
    │ 4 make (≈25 min for an hour, background)
-   │     cut + crop ─► MP4 ≤ 300 MB ─► MP3 320 kbps ─► Whisper (Mac) ─► Gemini (speakers) ─► merged
+   │     cut + crop ─► MP4 ≤ 300 MB ─► MP3 ≤ 90 MB ─► Whisper (Mac) ─► Gemini (speakers) ─► merged
    ▼ 5 check, report; the recording stays until the user has validated
 <folder>/<YYYY_MM_DD>_<name> - recording.mp4 · recording.mp3 · transcription-whisper.md · transcription-gemini.md · transcript.md
 ```
@@ -68,7 +68,7 @@ Always in the background (Bash `run_in_background`), never streaming its output.
 | Output | How | First recording (19 Nov 2026, 49 min) |
 |---|---|---|
 | `… - recording.mp4` (video only) | the crop, 30 fps, H.264 2-pass, its bitrate from the length so the file stays 3 % under `--max-mb` (300); AAC 128 kbps | 290 MB, 16 min |
-| `… - recording.mp3` | the same cut, 320 kbps | 119 MB, 20 s |
+| `… - recording.mp3` | the same cut, 320 kbps, lower when needed to stay under 90 MB (user, 27 Nov 2026: a 100 MB upload limit; 1 h = 196 kbps); temporary: with an MP4, `make` deletes it once `transcript.md` exists | 119 MB, 20 s |
 | `… - transcription-whisper.md` | Whisper large-v3-turbo on the Mac's GPU, the language detected (or `--language fr`), the speakers' names and `--words` as hints; no speakers | 3 min |
 | `… - transcription-gemini.md` | skill `gemini` (free key): a 16 kHz mono copy of the MP3 to Gemini 3.8 Flash, speakers named | 4.4 min |
 | `… - transcript.md` | Gemini merges the two: Gemini's turns and speakers, the likelier words where they differ, names spelled right, fillers out, `[?]` where unsure | |

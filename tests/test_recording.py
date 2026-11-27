@@ -27,6 +27,12 @@ class RecordingTest(unittest.TestCase):
         a[0:8, 248:256] = 1.0
         self.assertEqual(R.find_crop(a), (560, 560, 40, 160))   # (w, h, x, y) in screen pixels: 4x
 
+    def test_mp3_kbps_under_90_mb(self):
+        self.assertEqual(R.mp3_kbps(1800), 320)                 # 30 min at 320 kbps = 72 MB
+        self.assertEqual(R.mp3_kbps(3548), 196)                 # 59 min: 320 kbps would be 142 MB
+        for dur in (600, 3548, 7200):
+            self.assertLess(R.mp3_kbps(dur) * 1000 / 8 * dur / 1e6, 90)
+
     def test_video_kbps_fits(self):
         for dur in (600, 2965, 7200):
             kbps = R.video_kbps(dur, 300)
